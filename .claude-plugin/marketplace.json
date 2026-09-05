@@ -1,0 +1,24 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "awesome-claude-code-hooks",
+  "owner": {
+    "name": "Ray Amjad",
+    "url": "https://github.com/ray-amjad"
+  },
+  "metadata": {
+    "description": "Claude Code function hooks that are worth installing.",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "secret-redactor",
+      "source": "./plugins/secret-redactor",
+      "description": "Keeps secrets, email addresses and IP addresses out of the session transcript, and puts the real value back on the way into a tool call",
+      "version": "1.0.0",
+      "author": { "name": "Ray Amjad" },
+      "category": "security",
+      "keywords": ["security", "secrets", "redaction", "pii"],
+      "license": "MIT"
+    }
+  ]
+}

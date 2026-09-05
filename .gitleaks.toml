@@ -1,0 +1,22 @@
+# The secret detector cannot be tested without secret-shaped values.
+#
+# Every credential-looking string under a plugin's test/ directory is
+# synthetic. Each one was checked against every credential file on the
+# author's machine and matched nothing. They exist so the HIDE list in
+# detect.test.mts proves the detector still catches each vendor shape.
+#
+# Real values must never go here. If you add a case, invent the value.
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "placeholder"
+description = "unused; the allowlist below is the point of this file"
+regex = '''$^'''
+
+[allowlist]
+description = "synthetic fixtures for the detector's own test suite"
+paths = [
+  '''plugins/[^/]+/test/.*''',
+]

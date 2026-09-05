@@ -1,0 +1,6 @@
+# Written by /plugin-types, and rewritten by every Claude Code release.
+# Make it yourself with /plugin-types. See AGENTS.md.
+types/
+
+node_modules/
+.DS_Store

@@ -1,0 +1,93 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "secret-redactor",
+  "version": "1.0.0",
+  "description": "Keeps secrets, email addresses and IP addresses out of the session transcript: swaps each one for a stable placeholder on the way in, and puts the real value back on the way into a tool call",
+  "author": {
+    "name": "Ray Amjad",
+    "url": "https://github.com/ray-amjad"
+  },
+  "userConfig": {
+    "secrets": {
+      "type": "boolean",
+      "title": "Hide secrets",
+      "description": "Hide vendor-shaped keys and high-entropy tokens",
+      "default": true
+    },
+    "pii": {
+      "type": "boolean",
+      "title": "Hide emails and IP addresses",
+      "description": "Hide email addresses and public IP addresses",
+      "default": true
+    },
+    "restoreInToolInputs": {
+      "type": "boolean",
+      "title": "Put real values back for tools",
+      "description": "Swap a placeholder back for its real value before a tool runs, so commands and file writes keep working",
+      "default": true
+    },
+    "notify": {
+      "type": "boolean",
+      "title": "Say when something is hidden",
+      "description": "Show a count on the tool row and a toast on a prompt",
+      "default": true
+    },
+    "minEntropy": {
+      "type": "number",
+      "title": "Entropy floor (bits per character)",
+      "description": "A mixed-case token above this floor is treated as a secret. Raise it to hide less",
+      "default": 3.6
+    },
+    "minLength": {
+      "type": "number",
+      "title": "Length floor",
+      "description": "The shortest token the entropy test looks at",
+      "default": 24
+    },
+    "contextMinEntropy": {
+      "type": "number",
+      "title": "Entropy floor next to a key name",
+      "description": "The floor used when the token sits after API_KEY=, \"token\":, Bearer and the like",
+      "default": 3.0
+    },
+    "redactPrivateIps": {
+      "type": "boolean",
+      "title": "Hide private IP addresses too",
+      "description": "Also hide 127.x, 10.x, 192.168.x and other reserved ranges. Off, because localhost URLs are everywhere in dev",
+      "default": false
+    },
+    "allow": {
+      "type": "string",
+      "title": "Never hide these",
+      "description": "Exact strings to leave alone, separated by commas",
+      "default": ""
+    },
+    "allowEmails": {
+      "type": "string",
+      "title": "Never hide these emails",
+      "description": "Exact addresses, or a domain written as @example.com, separated by commas",
+      "default": ""
+    },
+    "allowPrefixes": {
+      "type": "string",
+      "title": "Never hide tokens starting with",
+      "description": "Extra id prefixes to treat as public, separated by commas (price_, prod_ and the other Stripe object ids are already public)",
+      "default": ""
+    },
+    "denyPrefixes": {
+      "type": "string",
+      "title": "Always test tokens starting with",
+      "description": "Prefixes to put back under the entropy test even though they look like a public id, separated by commas",
+      "default": ""
+    }
+  },
+  "homepage": "https://github.com/ray-amjad/awesome-claude-code-hooks",
+  "license": "MIT",
+  "keywords": [
+    "security",
+    "secrets",
+    "redaction",
+    "pii",
+    "hooks"
+  ]
+}
