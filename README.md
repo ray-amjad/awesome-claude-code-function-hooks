@@ -1,4 +1,4 @@
-# awesome-claude-code-hooks
+# awesome-claude-code-function-hooks
 
 Claude Code **function hooks** that are worth installing.
 
@@ -44,8 +44,8 @@ a payload. Pin what you rely on.
 This repo is a plugin marketplace. Add it once, then install what you want.
 
 ```
-/plugin marketplace add ray-amjad/awesome-claude-code-hooks
-/plugin install secret-redactor@awesome-claude-code-hooks
+/plugin marketplace add ray-amjad/awesome-claude-code-function-hooks
+/plugin install secret-redactor@awesome-claude-code-function-hooks
 ```
 
 ## The function hooks

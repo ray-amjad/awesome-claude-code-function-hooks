@@ -1,6 +1,6 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
-  "name": "awesome-claude-code-hooks",
+  "name": "awesome-claude-code-function-hooks",
   "owner": {
     "name": "Ray Amjad",
     "url": "https://github.com/ray-amjad"
