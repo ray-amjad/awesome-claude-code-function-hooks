@@ -46,6 +46,7 @@ This repo is a plugin marketplace. Add it once, then install what you want.
 ```
 /plugin marketplace add ray-amjad/awesome-claude-code-function-hooks
 /plugin install secret-redactor@awesome-claude-code-function-hooks
+/plugin install vercel-deploy-status@awesome-claude-code-function-hooks
 ```
 
 ## The function hooks
@@ -53,6 +54,7 @@ This repo is a plugin marketplace. Add it once, then install what you want.
 | Plugin | What it does |
 | --- | --- |
 | [secret-redactor](plugins/secret-redactor) | Swaps every secret, email address and IP address for a stable placeholder before the model reads it, then puts the real value back on the way into a tool call. Nothing goes to disk. |
+| [vercel-deploy-status](plugins/vercel-deploy-status) | Pins the Vercel deploy queue of the linked project under the prompt: one line per deploy that is queued, building or just finished, with its phase and elapsed time. A `git push` or a `gh pr merge` wakes it. |
 
 ## Work on this repo
 
@@ -71,7 +73,7 @@ reports that `h`, `Box`, `Text` and the `claude-code` module do not exist.
 
 Never hand-edit `types/claude-code.d.ts`. Run `/plugin-types` again instead.
 
-Then check a plugin:
+Then check a plugin. Each one has the same three steps:
 
 ```bash
 node --experimental-strip-types plugins/secret-redactor/test/detect.test.mts

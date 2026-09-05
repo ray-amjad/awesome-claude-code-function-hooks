@@ -1,0 +1,50 @@
+{
+  "$schema": "https://anthropic.com/claude-code/plugin.schema.json",
+  "name": "vercel-deploy-status",
+  "version": "1.0.0",
+  "description": "Pins the Vercel deploy queue of the linked project under the prompt: every deploy queued, building or just finished, with its phase and elapsed time",
+  "author": {
+    "name": "Ray Amjad"
+  },
+  "homepage": "https://github.com/ray-amjad/awesome-claude-code-function-hooks",
+  "license": "MIT",
+  "keywords": ["vercel", "deploy", "status", "ui", "function-hooks"],
+  "userConfig": {
+    "vercelBin": {
+      "type": "string",
+      "description": "The vercel executable to run",
+      "default": "vercel",
+      "title": "Vercel executable"
+    },
+    "activePollSeconds": {
+      "type": "number",
+      "description": "How often to ask Vercel while a deploy is in flight",
+      "default": 15,
+      "title": "Active poll (seconds)"
+    },
+    "idlePollSeconds": {
+      "type": "number",
+      "description": "How often to ask Vercel while no deploy is in flight",
+      "default": 60,
+      "title": "Idle poll (seconds)"
+    },
+    "holdFinishedMinutes": {
+      "type": "number",
+      "description": "How long a finished deploy stays on the line before it clears",
+      "default": 5,
+      "title": "Hold finished (minutes)"
+    },
+    "watchAfterPushMinutes": {
+      "type": "number",
+      "description": "How long to poll at the active rate after a push or a merge, waiting for the deploy to appear",
+      "default": 6,
+      "title": "Watch after push (minutes)"
+    },
+    "maxRows": {
+      "type": "number",
+      "description": "How many deploys to list before folding the rest into a count",
+      "default": 8,
+      "title": "Max rows"
+    }
+  }
+}

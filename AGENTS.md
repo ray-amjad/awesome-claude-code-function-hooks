@@ -64,6 +64,20 @@ file. If that version is older than the CLI in use, run it again.
    npx tsc -p plugins/secret-redactor/tsconfig.json
    ```
 
+   The same three for every other plugin, with its own test file:
+
+   ```bash
+   node --experimental-strip-types plugins/vercel-deploy-status/test/queue.test.mts
+   claude plugin validate plugins/vercel-deploy-status
+   npx tsc -p plugins/vercel-deploy-status/tsconfig.json
+   ```
+5. **Keep the UI out of the tested file.** A hook module may import a
+   sibling file (`./queue.ts` from `deploy-status.tsx` is proof: the loader
+   reports `hooks module vercel-deploy-status loaded`). Put types, parsing and
+   state logic in a file with no JSX and no `claude-code` import, and test
+   that file. `node --experimental-strip-types` cannot read JSX, so the `.tsx`
+   itself is checked by `tsc` and `claude plugin validate` only.
+
 ## secret-redactor
 
 The detector's contract is the two lists in
@@ -85,3 +99,27 @@ in the test file and the fixture read as redacted placeholders in your context.
 Copy those files with `cp`, and edit them with targeted `sed` or a string
 replace. Never rewrite one of them whole from what you see, or you write a
 placeholder into git.
+
+## vercel-deploy-status
+
+`hooks/queue.ts` holds everything with no UI in it and `test/queue.test.mts`
+covers it. A change to the wake regex, the merge or a formatter is finished
+only when that test still passes, and each change adds a check.
+
+Four facts about the runtime that this plugin ran into. Each one cost a
+debugging session, so they are written down here:
+
+1. `$.clock.after` returns a `Timer` with `.cancel()`, not a bare function.
+   `tsc` against the generated types catches this; guessing does not.
+2. A `.map()` array is not a valid `Box` child. Wrap it in a Fragment
+   (`<>…</>`), which draws as a column `Box`.
+3. `key` is a `Button` prop only. A `key` on a `Box` fails the tree's runtime
+   validation and the whole render falls back in silence.
+4. Plugin options are read from **user** settings only, under
+   `pluginConfigs["<name>@<marketplace>"].options`. The debug log says so in
+   plain words: "project settings are not read". With `--plugin-dir` the key is
+   `<name>` or `<name>@inline`.
+
+To see what the loader thinks, run a headless session with
+`--debug-file <path>` and grep for the plugin's name. Debug output does not
+reach stderr under `-p`.

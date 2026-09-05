@@ -1,0 +1,14 @@
+{
+  "compilerOptions": {
+    "target": "es2023", "lib": ["es2023"], "types": [],
+    "module": "esnext", "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "strict": true, "noEmit": true, "skipLibCheck": true,
+    "jsx": "react", "jsxFactory": "h", "jsxFragmentFactory": "Fragment"
+  },
+  // Only the hook modules. They run in the hooks runtime, which has no Node
+  // globals. test/ runs under Node instead, so it is checked by running it,
+  // not by tsc. Adding it here needs @types/node, and this repo has no
+  // dependencies on purpose.
+  "include": ["../../types", "hooks"]
+}
