@@ -5,7 +5,40 @@ Claude Code **function hooks** that are worth installing.
 A function hook is a TypeScript module that Claude Code loads and runs inside
 the session. It sees each event as it happens, and it can change the event.
 That is different from a shell hook: there is no subprocess, no JSON on stdin,
-and it can draw in the terminal. The API is early access, so it moves.
+and it can draw in the terminal.
+
+These are the **function hooks proposed in
+[anthropics/claude-code#91870](https://github.com/anthropics/claude-code/issues/91870)**.
+Read that issue first. It has the design, the videos and the architecture
+document, and it is where you say whether you want this to ship.
+
+## Turn the feature on first
+
+Function hooks are early access. They are **off by default**, and a plugin that
+uses one does nothing at all until you turn them on. Do this before you
+install anything here.
+
+Put it in your **user** settings, at `~/.claude/settings.json`, so every
+project gets it:
+
+```json
+{
+  "env": {
+    "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1"
+  }
+}
+```
+
+Or set it for one run, to try it without changing a setting:
+
+```bash
+CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude
+```
+
+The API is early access, so it moves. A release can rename an event or change
+a payload. Pin what you rely on.
+
+## Install
 
 This repo is a plugin marketplace. Add it once, then install what you want.
 

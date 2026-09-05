@@ -2,6 +2,22 @@
 
 Notes for an agent working in this repo. Read this before you write code.
 
+## Turn the feature on first
+
+Every plugin here is a **function hook**, the early-access feature from
+[anthropics/claude-code#91870](https://github.com/anthropics/claude-code/issues/91870).
+Function hooks are off by default. A plugin loads and then does nothing, with
+no error, until the flag is on.
+
+If you are debugging "the hook never fires", check this before anything else:
+
+```bash
+echo "$CLAUDE_CODE_ENABLE_FUNCTION_HOOKS"
+```
+
+Turn it on in `~/.claude/settings.json` under `env`, or per run with
+`CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude`.
+
 ## Get the types first
 
 `types/claude-code.d.ts` is **gitignored on purpose**. It is 200 KB of

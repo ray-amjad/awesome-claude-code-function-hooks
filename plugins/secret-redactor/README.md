@@ -3,6 +3,14 @@
 Keeps three classes of value out of the session transcript: secrets, email
 addresses and IP addresses.
 
+> **Turn function hooks on first.** This is a Claude Code **function hook**,
+> the early-access feature proposed in
+> [anthropics/claude-code#91870](https://github.com/anthropics/claude-code/issues/91870).
+> It is off by default, and this plugin does nothing until you turn it on. Add
+> `"env": { "CLAUDE_CODE_ENABLE_FUNCTION_HOOKS": "1" }` to
+> `~/.claude/settings.json`, or start one session with
+> `CLAUDE_CODE_ENABLE_FUNCTION_HOOKS=1 claude`.
+
 The value is not destroyed. It goes into a vault that lives in the hooks
 module, in memory, for the session, and the transcript gets a placeholder in
 its place:
