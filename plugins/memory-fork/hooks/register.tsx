@@ -208,7 +208,8 @@ async function write($: EngineInterface) {
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
     await $.command.register({ name: 'memory-fork', description: 'Show what the memory fork changed' })
-    void $.ui.open({ id: PANE, title: 'Memory' })
+    // Headless hosts have no pane to draw. The write pipeline still runs on turn.complete.
+    if (e.isInteractive !== false) void $.ui.open({ id: PANE, title: 'Memory' })
 
     return next(e)
   })

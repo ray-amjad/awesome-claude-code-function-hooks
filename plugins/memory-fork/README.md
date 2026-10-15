@@ -2,6 +2,8 @@
 
 A Claude Code mod that keeps your auto-memory up to date in the background, so the main session never stops to write it.
 
+In -p / SDK sessions the memory writes still run after each turn, but no pane is opened.
+
 ![memory-fork in a session: two "remember" turns, the Memory bar above the prompt with the lines added and removed and the files changed, with Open and Hide buttons, the Memory pane showing each run's added, updated and deleted files with their line counts, and the four steps from turn end to files on disk](diagram.png)
 
 After every turn:
