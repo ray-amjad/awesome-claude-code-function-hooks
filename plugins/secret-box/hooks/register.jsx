@@ -37,7 +37,8 @@ export function register(on, options) {
 
   // 1. Give Claude the tool, and teach the vault the secrets already in .env
   on('session.start', async ($, e, next) => {
-    await $.tool.register({
+    // The box needs a person to paste into, so a headless run gets no request_secret tool
+    if (e.isInteractive !== false) await $.tool.register({
       name: 'request_secret',
       description:
         'Ask the user for a secret (API key, token, password) without it ever entering the conversation. ' +
