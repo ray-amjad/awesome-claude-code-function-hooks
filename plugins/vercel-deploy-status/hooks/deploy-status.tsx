@@ -125,7 +125,7 @@ export const register: Register = (on, options) => {
     // Only where a person is at the prompt: a -p run or the SDK has no band.
     // (The field is `isInteractive`. The old check read `e.interactive`,
     // which does not exist, so it kept the mod off everywhere.)
-    if (!e.isInteractive || e.surface == null) return next(e)
+    if (e.isInteractive === false || e.surface == null) return next(e)
 
     const dir = await findLinkedDir($, e.cwd)
     if (!dir) {
