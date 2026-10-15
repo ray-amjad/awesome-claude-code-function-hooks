@@ -22,6 +22,8 @@ let path = []
 let view = 'node'
 // Where the session transcripts live, from the Stop hook
 let transcriptPath = ''
+// Set at each session.start; true for -p / SDK sessions, where the pane is never drawn
+let headless = false
 
 // Cheap check, no model: does the end of the reply ask something?
 // A question mark in the last paragraph, or a numbered / lettered / bulleted list of options.
@@ -252,6 +254,8 @@ function parseJson(text) {
 
 export function register(on, options) {
   on('session.start', async ($, e, next) => {
+    headless = e.isInteractive === false
+    if (headless) return next(e)
     await $.command.register({
       name: 'explain',
       description: 'Show the decision tree; A to H explores an option, other <answer> explores your own',
@@ -270,6 +274,8 @@ export function register(on, options) {
   // After each of Claude's replies: regex check, then the gate, then the fork
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
+    // Headless: nothing would be shown, so skip the gate and the fork
+    if (headless) return result
     // A branch's own claude -p run never explains its own replies
     if ((await $.env.get('DECISION_TREE_CHILD')) === '1') return result
     if (e.agentId || e.reason !== 'answer' || !looksLikeQuestion(e.answer)) return result
