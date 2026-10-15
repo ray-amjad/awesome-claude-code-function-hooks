@@ -1,4 +1,4 @@
-import { expect, test } from 'claude-code/testing'
+import { expect, mock, test } from 'claude-code/testing'
 
 import { handoffPath, lastLines, pickAction, tailCommand } from '../hooks/register'
 
@@ -40,4 +40,35 @@ test('tail reads the end on Mac and Linux; PowerShell on Windows, with the path 
   expect(argv.slice(0, 4)).toEqual(['powershell', '-NoProfile', '-NonInteractive', '-Command'])
   expect(argv[4]).not.toContain(path)
   expect(init).toEqual({ env: { CACHE_CLOCK_FILE: path } })
+})
+
+// Headless (-p, SDK): no band timer and no /cache-clock command. The timer is
+// what would submit handoff turns, so it must not exist without a person.
+test('headless session starts no timer and no command', async ($, on) => {
+  mock.store(on, {})
+  mock.env(on, {})
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  let timers = 0
+  let commands = 0
+  on('clock.every', () => { timers += 1; return { value: undefined } as never })
+  on('command.register', () => { commands += 1; return { value: undefined } as never })
+  await $.session.start({ cwd: '/nowhere', surface: 'terminal', isInteractive: false })
+  expect(timers).toBe(0)
+  expect(commands).toBe(0)
+})
+
+// Positive control: the same probes fire in an interactive session, so the
+// headless test above cannot pass just because the event names are wrong.
+test('interactive session starts the timer and the command', async ($, on) => {
+  mock.store(on, {})
+  mock.env(on, {})
+  on('session.start', (_$, e) => ({ cwd: e.cwd }))
+  on('session.usage', () => ({ value: { context: 0 } }) as never)
+  let timers = 0
+  let commands = 0
+  on('clock.every', () => { timers += 1; return { value: undefined } as never })
+  on('command.register', () => { commands += 1; return { value: undefined } as never })
+  await $.session.start({ cwd: '/nowhere', surface: 'terminal', isInteractive: true })
+  expect(timers).toBe(1)
+  expect(commands).toBe(1)
 })

@@ -188,6 +188,9 @@ async function tick($) {
 
 export function register(on, options) {
   on('session.start', async ($, e, next) => {
+    // Headless (-p, SDK): no band, and the timer would submit handoff turns
+    // or compact with nobody at the prompt. Do nothing.
+    if (e.isInteractive === false) return next(e)
     await loadConfig($, options)
     context = (await $.session.usage()).context
     await $.command.register({ name: 'cache-clock', description: 'Print the cache countdown and context use' })

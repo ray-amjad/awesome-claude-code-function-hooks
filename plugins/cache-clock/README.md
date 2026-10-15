@@ -18,6 +18,8 @@ Every request to the model writes the conversation to the prompt cache. If the n
   It runs once per idle stretch and re-arms when you send a message.
 - `/cache-clock` prints the same line as text.
 
+Does nothing in -p / SDK sessions.
+
 The handoff is the only thing it sends to Claude: one short turn on a warm cache. Compact sends no turn; it is the same compaction `/compact` runs.
 
 ## Install
