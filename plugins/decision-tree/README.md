@@ -13,7 +13,7 @@ After every turn:
 
 You answer Claude in the prompt as usual. Nothing in the pane goes back to Claude.
 
-Does nothing in -p / SDK sessions.
+Does nothing in -p / SDK sessions, unless `DECISION_TREE_WAIT=1` is set (see below).
 
 ## Exploring
 

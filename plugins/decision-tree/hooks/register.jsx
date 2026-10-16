@@ -274,15 +274,16 @@ export function register(on, options) {
   // After each of Claude's replies: regex check, then the gate, then the fork
   on('turn.complete', async ($, e, next) => {
     const result = await next(e)
-    // Headless: nothing would be shown, so skip the gate and the fork
-    if (headless) return result
+    // Headless: nothing would be shown, so skip the gate and the fork, unless DECISION_TREE_WAIT asks for it
+    const wait = (await $.env.get('DECISION_TREE_WAIT')) === '1'
+    if (headless && !wait) return result
     // A branch's own claude -p run never explains its own replies
     if ((await $.env.get('DECISION_TREE_CHILD')) === '1') return result
     if (e.agentId || e.reason !== 'answer' || !looksLikeQuestion(e.answer)) return result
     if (!(await needsDecision($, e.answer, options.gateModel || 'haiku'))) return result
     // Run the fork without holding up the prompt; in a -p run, wait so the process lives on
     const work = explainRoot($, e.answer).catch(err => $.ui.log('decision-tree failed: ' + err))
-    if ((await $.env.get('DECISION_TREE_WAIT')) === '1') await work
+    if (wait) await work
     return result
   })
 
