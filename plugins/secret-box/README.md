@@ -107,7 +107,7 @@ claude plugin test .
 node --experimental-strip-types tests/detect.test.mts
 ```
 
-`tests/secret-box.test.ts` covers the guard, `.env` values and the round trip from placeholder to value. `tests/detect.test.mts` is transcript-redactor's detector test: 174 values that must be hidden and 114 that must be kept.
+`tests/secret-box.test.ts` covers the guard, `.env` values and the round trip from placeholder to value. `tests/detect.test.mts` is transcript-redactor's detector test: 176 values that must be hidden and 117 that must be kept.
 
 Tested with Claude Code 2.1.296.
 
