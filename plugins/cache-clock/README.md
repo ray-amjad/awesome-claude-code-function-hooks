@@ -52,6 +52,7 @@ CACHE_CLOCK_MAIN_TTL_MIN=2 CACHE_CLOCK_WARN_MIN=1.5 claude
 ## How it works
 
 - Every `turn.step` (one per model request) restarts the main clock, or the `sub` clock when the step carries an `agentId`. A one second `$.clock.every` redraws the band and checks the warning.
+- `/recap` and `/btw` send the conversation to the model outside a turn, so no `turn.step` fires for them. Their request reads the main cache all the same, so a `command.run` hook on each restarts the main clock too.
 - After each turn it reads the end of the session transcript for the newest main-thread `usage.cache_creation`: tokens in `ephemeral_1h` mean 1 hour, `ephemeral_5m` mean 5 minutes. On `--resume` it seeds the clock from the session's `seconds_since_last_response`.
 - Context comes from `$.session.usage()` at start, then the pushed `session.measure` figures.
 - The warning action: when the warning fires, no turn is running (`turn.start`/`turn.complete`) and nothing has run since your last prompt, `handoff` calls `$.prompt.submit` and `compact` calls `$.session.compact`, then reads the smaller context back from `$.session.usage()`. A `prompt.submit` hook re-arms it on your next prompt.

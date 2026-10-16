@@ -158,6 +158,25 @@ async function compactWarm($, left) {
   }
 }
 
+// A main-session request just read or wrote the cache: a full TTL again
+function restartMain(now) {
+  mainAt = now
+  warned = false
+  wentCold = false
+}
+
+// /recap and /btw send the whole conversation to the model as a side request.
+// It reads the main cache, so it keeps it warm, but it is no turn, so no
+// turn.step fires for it (#15). Each one is hooked in register below.
+export const SIDE_REQUEST_COMMANDS = ['recap', 'btw']
+async function sideRequest($, e, next) {
+  if (mainAt) restartMain(await $.clock.now()) // nothing cached before the first request
+  return next(e)
+}
+function passThrough($, e, next) {
+  return next.called ? undefined : next(e) // never block the command on our error
+}
+
 // Once a second: warn near expiry, note when it goes cold, redraw the band
 async function tick($) {
   const s = snapshot(await $.clock.now())
@@ -218,9 +237,13 @@ export function register(on, options) {
   on('turn.step', async function* ($, e, next) {
     const now = await $.clock.now()
     if (e.agentId) subAt = now
-    else { mainAt = now; warned = false; wentCold = false }
+    else restartMain(now)
     yield* next(e)
   })
+
+  // /recap and /btw: a side request that keeps the main cache warm
+  on('command.run', { command: 'recap' }, sideRequest).catch(passThrough)
+  on('command.run', { command: 'btw' }, sideRequest).catch(passThrough)
 
   // After each turn, check which TTL the API actually used
   on('classic.Stop', async ($, e, next) => {
