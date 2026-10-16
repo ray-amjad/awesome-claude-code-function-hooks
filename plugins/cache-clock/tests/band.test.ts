@@ -1,6 +1,6 @@
 import { expect, test } from 'claude-code/testing'
 
-import { handoffPath, lastLines, pickAction, SIDE_REQUEST_COMMANDS, tailCommand } from '../hooks/register'
+import { handoffPath, lastLines, pickAction, tailCommand } from '../hooks/register'
 
 test('the band draws one line', async ($, on) => {
   on('clock.now', () => ({ value: 1_000_000 }))
@@ -17,7 +17,7 @@ async function cachePiece($: any) {
   return String(text).split('  ·  ')[0]
 }
 
-for (const command of SIDE_REQUEST_COMMANDS) {
+for (const [command, args] of [['recap', ''], ['btw', 'what word did you reply with?']]) {
   test(`/${command} restarts the main cache clock, though no turn.step fires for it (#15)`, async ($, on) => {
     let now = 1_000_000
     on('clock.now', () => ({ value: now }))
@@ -26,7 +26,7 @@ for (const command of SIDE_REQUEST_COMMANDS) {
     on('command.run', () => ({ text: 'side answer' }))
 
     // Before any main request there is nothing cached to keep warm
-    await $.command.run({ command, args: '' } as any)
+    await $.command.run({ command, args } as any)
     expect(await cachePiece($)).toBe('◷ cache: no request yet')
 
     // A main turn starts the hour; 50 minutes later 10 are left
@@ -36,10 +36,26 @@ for (const command of SIDE_REQUEST_COMMANDS) {
     expect(await cachePiece($)).toBe('◷ cache 10:00 left')
 
     // The side request reads the cache: a full hour again
-    await $.command.run({ command, args: '' } as any)
+    await $.command.run({ command, args } as any)
     expect(await cachePiece($)).toBe('◷ cache 60:00 left')
   })
 }
+
+test('a side request on a cold cache, or a bare /btw, leaves the clock alone', async ($, on) => {
+  let now = 1_000_000
+  on('clock.now', () => ({ value: now }))
+  on('ui.render', () => null)
+  on('turn.step', async function* (_$, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [] } as any })
+  on('command.run', () => ({ text: 'ok' }))
+  const step = $.turn.step({ turnId: 't1', index: 0, model: 'm', messageCount: 1 } as any)
+  for await (const _ of step);
+  now += 50 * MIN
+  await $.command.run({ command: 'btw', args: '  ' } as any)
+  expect(await cachePiece($)).toBe('◷ cache 10:00 left')
+  now += 20 * MIN
+  await $.command.run({ command: 'recap', args: '' } as any)
+  expect(await cachePiece($)).toBe('◷ cache cold')
+})
 
 test('another command leaves the cache clock alone', async ($, on) => {
   let now = 1_000_000

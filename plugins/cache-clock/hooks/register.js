@@ -167,14 +167,14 @@ function restartMain(now) {
 
 // /recap and /btw send the whole conversation to the model as a side request.
 // It reads the main cache, so it keeps it warm, but it is no turn, so no
-// turn.step fires for it (#15). Each one is hooked in register below.
-export const SIDE_REQUEST_COMMANDS = ['recap', 'btw']
+// turn.step fires for it (#15). Only a warm cache counts: a cold one the side
+// request may not write back at the main TTL, so the band stays honest. A bare
+// /btw asks nothing and sends nothing.
 async function sideRequest($, e, next) {
-  if (mainAt) restartMain(await $.clock.now()) // nothing cached before the first request
+  const now = await $.clock.now()
+  const asks = e.command !== 'btw' || String(e.args ?? '').trim() !== ''
+  if (asks && mainAt && mainAt + cfg.mainTtl > now) restartMain(now)
   return next(e)
-}
-function passThrough($, e, next) {
-  return next.called ? undefined : next(e) // never block the command on our error
 }
 
 // Once a second: warn near expiry, note when it goes cold, redraw the band
@@ -242,8 +242,9 @@ export function register(on, options) {
   })
 
   // /recap and /btw: a side request that keeps the main cache warm
-  on('command.run', { command: 'recap' }, sideRequest).catch(passThrough)
-  on('command.run', { command: 'btw' }, sideRequest).catch(passThrough)
+  // (a hook that fails is skipped and the command still runs)
+  on('command.run', { command: 'recap' }, sideRequest)
+  on('command.run', { command: 'btw' }, sideRequest)
 
   // After each turn, check which TTL the API actually used
   on('classic.Stop', async ($, e, next) => {
