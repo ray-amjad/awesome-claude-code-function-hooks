@@ -11,9 +11,12 @@ test('the band draws one line', async ($, on) => {
 
 test('the warning action comes from the env var, then the old switch, then the setting', async () => {
   expect(pickAction(undefined, undefined, undefined)).toBe('handoff')
-  expect(pickAction(undefined, undefined, 'compact')).toBe('compact')
-  expect(pickAction(undefined, '0', 'compact')).toBe('off')
-  expect(pickAction('compact', '0', 'off')).toBe('compact')
+  expect(pickAction(undefined, undefined, 'off')).toBe('off')
+  expect(pickAction(undefined, '0', 'handoff')).toBe('off')
+  expect(pickAction('handoff', '0', 'off')).toBe('handoff')
+  // compact is gone (Claude Code's idle compaction does it); an old saved value means off
+  expect(pickAction(undefined, undefined, 'compact')).toBe('off')
+  expect(pickAction('compact', undefined, 'handoff')).toBe('off')
   expect(pickAction('nonsense', undefined, undefined)).toBe('handoff')
 })
 

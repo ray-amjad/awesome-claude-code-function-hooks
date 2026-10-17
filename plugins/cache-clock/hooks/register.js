@@ -16,8 +16,7 @@ let subAt = 0 // when a subagent last sent one
 let warned = false // toast already shown for this warm period
 let wentCold = false // "went cold" already shown
 let working = false // a turn is running
-let handedOff = false // handoff or compaction done since the user last sent something
-let compacted = null // { before, after } tokens, when the warning compacted the session
+let handedOff = false // handoff done since the user last sent something
 let context = null // { tokens, window, percent } from $.session.usage()
 let transcript = null // path to this session's .jsonl
 
@@ -27,11 +26,13 @@ function minutes(value, fallback) {
   return Number.isFinite(n) && n > 0 ? n * MIN : fallback
 }
 
-const ACTIONS = ['handoff', 'compact', 'off']
+const ACTIONS = ['handoff', 'off']
 
-// What the warning does: the env var, then the old CACHE_CLOCK_AUTO_HANDOFF=0, then the setting
+// What the warning does: the env var, then the old CACHE_CLOCK_AUTO_HANDOFF=0, then the setting.
+// The old 'compact' choice means 'off' now: Claude Code's own idle compaction does that job.
 export function pickAction(envAction, envAutoHandoff, setting) {
-  const action = envAction ?? (envAutoHandoff === '0' ? 'off' : setting)
+  let action = envAction ?? (envAutoHandoff === '0' ? 'off' : setting)
+  if (action === 'compact') action = 'off'
   return ACTIONS.includes(action) ? action : 'handoff'
 }
 
@@ -141,23 +142,6 @@ function handoffText(file) {
   return '(' + HANDOFF_MARKER + ') The prompt cache goes cold soon and the user has not replied. While the cache is still warm, write a short handoff note to ' + file + ': the goal, what is done, what is next, open questions, and the key files. Keep it brief, and write it even if the session has been short. Do nothing else. A fresh session will start from it if the user does not come back.'
 }
 
-// Compact while the cache is warm: the summary request reads the cached
-// conversation, and the next message after the cache goes cold re-sends only
-// the summary instead of the whole context.
-const COMPACT_INSTRUCTIONS = 'The user stepped away. Keep the goal, what is done, what is next, open questions, and the key files, so the work can pick up from here.'
-async function compactWarm($, left) {
-  $.ui.toast('Prompt cache goes cold in ' + clock(left) + '. No reply, so the session is compacting while it is warm.', { timeoutMs: 10_000 })
-  try {
-    const result = await $.session.compact({ instructions: COMPACT_INSTRUCTIONS })
-    if (result.skip) return $.ui.toast('Compaction skipped: ' + result.skip)
-    compacted = { before: result.tokensBefore ?? context?.tokens ?? 0, after: result.tokensAfter ?? 0 }
-    context = (await $.session.usage()).context ?? context
-    $.ui.toast('Compacted ' + fmtTokens(compacted.before) + ' to ' + fmtTokens(compacted.after) + ' tokens while the cache was warm.', { timeoutMs: 10_000 })
-  } catch (err) {
-    handedOff = false // a turn started in the meantime; try again next warning
-  }
-}
-
 // Once a second: warn near expiry, note when it goes cold, redraw the band
 async function tick($) {
   const s = snapshot(await $.clock.now())
@@ -166,12 +150,9 @@ async function tick($) {
     // Idle and nothing done since the user's last message: act while the cache is warm
     if (cfg.onWarning !== 'off' && !working && !handedOff) {
       handedOff = true
-      if (cfg.onWarning === 'compact') compactWarm($, s.left)
-      else {
-        const file = handoffPath(cfg.handoffDir || (await $.session.root()), await $.session.id())
-        $.ui.toast('Prompt cache goes cold in ' + clock(s.left) + '. No reply, so Claude is writing ' + file.split(/[\\/]/).pop() + ' while it is warm.', { timeoutMs: 10_000 })
-        $.prompt.submit({ text: handoffText(file) }).catch(() => {}) // waits for idle; don't await in the tick
-      }
+      const file = handoffPath(cfg.handoffDir || (await $.session.root()), await $.session.id())
+      $.ui.toast('Prompt cache goes cold in ' + clock(s.left) + '. No reply, so Claude is writing ' + file.split(/[\\/]/).pop() + ' while it is warm.', { timeoutMs: 10_000 })
+      $.prompt.submit({ text: handoffText(file) }).catch(() => {}) // waits for idle; don't await in the tick
     } else {
       $.ui.toast('Prompt cache goes cold in ' + clock(s.left) + '. Send something to keep it warm.', { timeoutMs: 10_000 })
     }
@@ -179,9 +160,7 @@ async function tick($) {
   }
   if (mainAt && s.left <= 0 && !wentCold) {
     wentCold = true
-    $.ui.toast(compacted
-      ? 'Prompt cache is cold, but the session was compacted to ' + fmtTokens(compacted.after) + ', so the next message is a small write.'
-      : 'Prompt cache is cold. The next message re-sends the whole context at full price.')
+    $.ui.toast('Prompt cache is cold. The next message re-sends the whole context at full price.')
   }
   $.ui.invalidate('ui.render')
 }
@@ -213,7 +192,7 @@ export function register(on, options) {
 
   // A prompt from the user (not our own handoff) re-arms the warning action
   on('prompt.submit', async ($, e, next) => {
-    if (!String(e.text ?? '').includes(HANDOFF_MARKER)) { handedOff = false; compacted = null }
+    if (!String(e.text ?? '').includes(HANDOFF_MARKER)) handedOff = false
     return next(e)
   })
 
