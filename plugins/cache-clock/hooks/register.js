@@ -243,9 +243,13 @@ export function register(on, options) {
     return next(e)
   })
 
-  // The band itself: one line above the prompt
+  // The band itself: one line above the prompt, with the other mods' bands drawn under it
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     if (e.props.hasSurvey) return next(e)
+    // Our line takes one row, so the bands below get one fewer
+    // A band below that fails must not take ours with it
+    let below = null
+    try { below = await next({ ...e, props: { ...e.props, maxRows: Math.max(0, e.props.maxRows - 1) } }) } catch {}
     const { Box, Text } = $.ui.resolve(e)
     const s = snapshot(await $.clock.now())
     // Pieces in order of importance; drop from the end until it fits one line
@@ -258,7 +262,8 @@ export function register(on, options) {
     const SEP = '  ·  '
     while (pieces.length > 1 && pieces.map((p) => p.text).join(SEP).length > e.props.bodyColumns) pieces.pop()
     const parts = pieces.flatMap((p, i) => i ? [h(Text, { dimColor: true }, SEP), h(Text, p.style, p.text)] : [h(Text, p.style, p.text)])
-    return h(Box, {}, h(Text, { wrap: 'truncate-end' }, ...parts))
+    const line = h(Box, {}, h(Text, { wrap: 'truncate-end' }, ...parts))
+    return below ? h(Box, { flexDirection: 'column' }, line, below) : line
   })
 
   on('command.run', { command: 'cache-clock' }, async ($) => {

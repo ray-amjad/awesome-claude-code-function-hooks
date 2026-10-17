@@ -4,9 +4,23 @@ import { handoffPath, lastLines, pickAction, tailCommand } from '../hooks/regist
 
 test('the band draws one line', async ($, on) => {
   on('clock.now', () => ({ value: 1_000_000 }))
-  on('ui.render', () => null)
+  on('ui.render', () => ({ type: 'Text', children: [''] }) as never)
   const ui = await $.ui.mount({ plugin: 'cache-clock', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } } } as any)
   expect(await ui.find({ type: 'Text', text: /cache/ } as any)).toBeDefined()
+})
+
+// Another mod's band (vercel-deploy-status, say) sits behind cache-clock in the chain
+test('the band draws the other mods\' bands under it', async ($, on) => {
+  on('clock.now', () => ({ value: 1_000_000 }))
+  let rows = -1
+  on('ui.render', { component: 'AbovePrompt' }, (_$, e: any) => {
+    rows = e.props.maxRows
+    return { type: 'Text', children: ['other band'] } as never
+  })
+  const ui = await $.ui.mount({ plugin: 'cache-clock', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } } } as any)
+  expect(await ui.find({ type: 'Text', text: /cache/ } as any)).toBeDefined()
+  expect(await ui.find({ type: 'Text', text: /other band/ } as any)).toBeDefined()
+  expect(rows).toBe(9)
 })
 
 const BAND = { plugin: 'cache-clock', surface: 'terminal', component: 'AbovePrompt', props: { hasSurvey: false, isWorking: false, maxRows: 10, bodyColumns: 120, scroll: { offset: 0, bodyRows: 10 } } } as any
@@ -21,7 +35,7 @@ for (const [command, args] of [['recap', ''], ['btw', 'what word did you reply w
   test(`/${command} restarts the main cache clock, though no turn.step fires for it (#15)`, async ($, on) => {
     let now = 1_000_000
     on('clock.now', () => ({ value: now }))
-    on('ui.render', () => null)
+    on('ui.render', () => ({ type: 'Text', children: [''] }) as never)
     on('turn.step', async function* (_$, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [] } as any })
     on('command.run', () => ({ text: 'side answer' }))
 
@@ -44,7 +58,7 @@ for (const [command, args] of [['recap', ''], ['btw', 'what word did you reply w
 test('a side request on a cold cache, or a bare /btw, leaves the clock alone', async ($, on) => {
   let now = 1_000_000
   on('clock.now', () => ({ value: now }))
-  on('ui.render', () => null)
+  on('ui.render', () => ({ type: 'Text', children: [''] }) as never)
   on('turn.step', async function* (_$, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [] } as any })
   on('command.run', () => ({ text: 'ok' }))
   const step = $.turn.step({ turnId: 't1', index: 0, model: 'm', messageCount: 1 } as any)
@@ -60,7 +74,7 @@ test('a side request on a cold cache, or a bare /btw, leaves the clock alone', a
 test('another command leaves the cache clock alone', async ($, on) => {
   let now = 1_000_000
   on('clock.now', () => ({ value: now }))
-  on('ui.render', () => null)
+  on('ui.render', () => ({ type: 'Text', children: [''] }) as never)
   on('turn.step', async function* (_$, e) { return { turnId: e.turnId, index: e.index, answer: '', toolUses: [] } as any })
   on('command.run', () => ({ text: 'ok' }))
   const step = $.turn.step({ turnId: 't1', index: 0, model: 'm', messageCount: 1 } as any)
