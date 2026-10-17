@@ -14,7 +14,7 @@
       "name": "cache-clock",
       "source": "./plugins/cache-clock",
       "description": "A one-line band above the prompt: context used, and a countdown until the prompt cache goes cold",
-      "version": "0.4.2",
+      "version": "0.5.1",
       "author": {
         "name": "Ray Amjad"
       },
