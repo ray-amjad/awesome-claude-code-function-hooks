@@ -12,7 +12,8 @@
 //
 // The redaction is transcript-redactor, unchanged (./redact.ts, ./detect.ts):
 // its hooks do the In, Out and Use. This file adds the box, teaches the vault
-// the values in .env, and guards commits. Nothing is written but .env.
+// the values in .env, and guards commits. Nothing is written but the env file
+// the secret goes to (.env by default) and its .gitignore line.
 
 import { register as redactor, LIVE_TAG_TOOLS, brand } from './redact.ts'
 import { keepSecret } from './detect.ts'
@@ -23,7 +24,10 @@ const DOT = '•'
 
 // The one request being collected right now. The real value lives only here,
 // in the mod's memory, until it is saved.
-let pending = null // { name, reason, value, answer, isInBand }
+let pending = null // { name, reason, file, value, answer, isInBand, startedAt }
+
+// How long the box waits for the person before it gives up
+const WAIT_MS = 10 * 60_000
 
 // A .env key whose name says it holds a secret
 const SECRET_NAME = /KEY|TOKEN|SECRET|PASS|PWD|CREDENTIAL|AUTH|PRIVATE|DSN|SALT|SIGNING|WEBHOOK/i
@@ -42,7 +46,8 @@ export function register(on, options) {
       name: 'request_secret',
       description:
         'Ask the user for a secret (API key, token, password) without it ever entering the conversation. ' +
-        'The user pastes it into a masked box and the mod saves it to the project .env. You get back the ' +
+        'The user pastes it into a masked box and the mod saves it to the project .env (or the env file named ' +
+        'in `file`, such as .env.local). You get back the ' +
         'variable name and a placeholder like [REDACTED-SECRET-1a2b3c4d]. Write that placeholder in a command ' +
         'or file and it becomes the real value when the tool runs. Use this INSTEAD of asking the user to ' +
         'paste a secret into chat.',
@@ -51,6 +56,7 @@ export function register(on, options) {
         properties: {
           name: { type: 'string', description: 'Environment variable name, e.g. STRIPE_SECRET_KEY' },
           reason: { type: 'string', description: 'One short line telling the user why it is needed' },
+          file: { type: 'string', description: 'Env file in the project folder to save to, e.g. .env.local. Default .env' },
         },
         required: ['name', 'reason'],
       },
@@ -90,33 +96,54 @@ export function register(on, options) {
     if ((await $.session.surfaces()).length === 0) {
       return { result: `secret-box needs an interactive session to collect ${name}. Ask the user to run Claude Code interactively.` }
     }
+    // .env, .env.local ...: a file name in the project folder, never a path.
+    // No empty or trailing part: Windows drops a trailing dot, so .env.example.
+    // would write the committed .env.example.
+    const file = String(e.file || '.env').trim()
+    if (!isEnvFile(file) || !/^\.env(\.[\w-]+)*$/.test(file)) {
+      return { result: `"${file}" is not an env file name. Use .env or a name like .env.local, with no folder.` }
+    }
+    const now = await $.clock.now()
+    // A request past its deadline has no loop left waiting on it: drop it
+    if (pending && now - pending.startedAt > WAIT_MS) pending = null
     if (pending) return { result: `secret-box is already waiting for ${pending.name}. Ask for one secret at a time.` }
 
-    // `answer` stays undefined until Enter (the value) or Escape (empty)
-    pending = { name, reason: String(e.reason || ''), value: '', answer: undefined, isInBand: false }
-    const opened = await $.ui.open({ id: PANE, title: 'secret-box', focus: true, closeOnEscape: true, holdToasts: true, rows: 7 })
-    // A narrow terminal (under 144 columns) keeps the pane undrawn: use the band above the prompt instead
-    if (!opened.isPlaced) {
-      pending.isInBand = true
-      await $.ui.close({ id: PANE })
-      $.ui.invalidate('ui.render')
-      $.ui.toast(`Claude wants ${name}: press ctrl+x then tab to type it in the box above the prompt`, { timeoutMs: 10000 })
-    }
+    // `answer` stays undefined until Enter (the value) or Escape (empty).
+    // This call's own request: a stalled call that wakes late reads and clears only its own.
+    const req = { name, reason: String(e.reason || ''), file, value: '', answer: undefined, isInBand: false, startedAt: now }
+    pending = req
+    let value
+    try {
+      const opened = await $.ui.open({ id: PANE, title: 'secret-box', focus: true, closeOnEscape: true, holdToasts: true, rows: 7 })
+      // A narrow terminal (under 144 columns) keeps the pane undrawn: use the band above the prompt instead
+      if (!opened.isPlaced) {
+        req.isInBand = true
+        await $.ui.close({ id: PANE })
+        $.ui.invalidate('ui.render')
+        $.ui.toast(`Claude wants ${name}: press ctrl+x then tab to type it in the box above the prompt`, { timeoutMs: 10000 })
+      }
 
-    // A hook's own run time is capped at 10 s, but time inside a mods API call
-    // is not counted, so wait for the person in short `sleep` processes.
-    const deadline = (await $.clock.now()) + 10 * 60_000
-    while (pending.answer === undefined && !next.signal.aborted && (await $.clock.now()) < deadline) {
-      await pause($)
+      // A hook's own run time is capped at 10 s, but time inside a mods API call
+      // is not counted, so wait for the person in short processes.
+      const deadline = now + WAIT_MS
+      while (req.answer === undefined && !next.signal.aborted && (await $.clock.now()) < deadline) {
+        await pause($)
+      }
+      value = req.answer
+    } catch (err) {
+      return { result: `secret-box could not wait for the box: ${String(err && err.message || err).slice(0, 300)}. Nothing was saved.` }
+    } finally {
+      // Always let go, whatever threw. The hook's own .catch is not enough: when
+      // a hook above it in this plugin answers first, that .catch never runs,
+      // and a request left set blocks every later call.
+      if (pending === req) pending = null
+      try { await $.ui.close({ id: PANE }) } catch {}
+      $.ui.invalidate('ui.render')
     }
-    const value = pending.answer
-    pending = null
-    await $.ui.close({ id: PANE })
-    $.ui.invalidate('ui.render')
     if (!value) return { result: `The user cancelled. ${name} was not saved.` }
 
     try {
-      const where = await saveToDotenv($, await $.session.cwd(), name, value)
+      const where = await saveToDotenv($, await $.session.cwd(), file, name, value)
       const tag = keepSecret(value)
       $.ui.toast(`${name} saved to ${where}`)
       // The ONLY things Claude learns: the name, the place, and a placeholder
@@ -125,11 +152,11 @@ export function register(on, options) {
       return { result: `Saving ${name} failed: ${String(err && err.message || err).slice(0, 300)}` }
     }
   }).catch(async ($, e, next) => {
-    // If the hook itself fails (or times out), drop the request, close the box and tell Claude plainly
-    pending = null
+    // If the hook itself fails (or times out), close the box and tell Claude plainly.
+    // Its own request was let go in `finally`; one another call holds is left alone.
     try { await $.ui.close({ id: PANE }) } catch {}
     $.ui.invalidate('ui.render')
-    $.ui.log('request_secret failed: ' + JSON.stringify(next.error).slice(0, 500))
+    $.ui.log('request_secret failed: ' + String(next.error && next.error.message).slice(0, 300))
     return { result: 'secret-box failed before anything was saved. Nothing was written.' }
   })
 
@@ -162,7 +189,7 @@ async function pause($) {
   waits ||= [...((await $.env.get('OS')) === 'Windows_NT' ? WAITS.windows : WAITS.unix)]
   for (;;) {
     try {
-      return await $.process.run(waits[0])
+      return await $.process.run(waits[0], { timeoutMs: 5000 })
     } catch (err) {
       // Only a command that is not there moves on to the next one
       if (waits.length > 1 && isNotFound(err)) waits.shift()
@@ -278,8 +305,19 @@ function drawBox($, e, p) {
   )
 }
 
-async function saveToDotenv($, cwd, name, value) {
-  const path = cwd + '/.env'
+async function saveToDotenv($, cwd, file, name, value) {
+  // A file git tracks would carry the secret into the next commit: refuse it
+  let tracked = null
+  try { tracked = await $.process.run(['git', 'ls-files', '--error-unmatch', file], { cwd }) } catch {}
+  if (tracked && tracked.exitCode === 0) throw new Error(`${file} is tracked by git, so a secret in it would be committed. Pick another file.`)
+
+  // .gitignore first: if that write fails, the secret is never on disk un-ignored
+  const gi = cwd + '/.gitignore'
+  const ignore = (await $.fs.exists(gi)) ? await $.fs.read(gi) : ''
+  const isIgnored = await gitIgnores($, cwd, file, ignore)
+  if (!isIgnored) await $.fs.write(gi, ignore + (ignore && !ignore.endsWith('\n') ? '\n' : '') + file + '\n')
+
+  const path = cwd + '/' + file
   const old = (await $.fs.exists(path)) ? await $.fs.read(path) : ''
   const line = `${name}=${quote(value)}`
   const lines = old.split('\n').filter((l, i, all) => !(i === all.length - 1 && l === ''))
@@ -287,12 +325,17 @@ async function saveToDotenv($, cwd, name, value) {
   if (at >= 0) lines[at] = line
   else lines.push(line)
   await $.fs.write(path, lines.join('\n') + '\n')
+  return file + (isIgnored ? '' : ` (and added ${file} to .gitignore)`)
+}
 
-  const gi = cwd + '/.gitignore'
-  const ignore = (await $.fs.exists(gi)) ? await $.fs.read(gi) : ''
-  const isIgnored = ignore.split('\n').some(l => ['.env', '.env*', '*.env', '/.env'].includes(l.trim()))
-  if (!isIgnored) await $.fs.write(gi, ignore + (ignore && !ignore.endsWith('\n') ? '\n' : '') + '.env\n')
-  return '.env' + (isIgnored ? '' : ' (and added .env to .gitignore)')
+// Whether git already ignores the file (any pattern, e.g. `.env*.local`).
+// Outside a repository, look for the plain patterns in .gitignore instead.
+async function gitIgnores($, cwd, file, ignore) {
+  let r = null
+  try { r = await $.process.run(['git', 'check-ignore', '-q', file], { cwd }) } catch {}
+  if (r && (r.exitCode === 0 || r.exitCode === 1)) return r.exitCode === 0
+  const plain = [file, '/' + file, '.env*', ...(file === '.env' ? ['*.env'] : [])]
+  return ignore.split('\n').some(l => plain.includes(l.trim()))
 }
 
 // Plain values stay bare; anything with spaces, quotes or # gets double quotes.

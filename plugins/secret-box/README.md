@@ -77,7 +77,7 @@ Stripe object ids (`price_`, `prod_`, `cus_`, `pk_live_` and so on) are public a
 
 - `session.start` registers the tool with `isDeferred: false`, so Claude sees it on every turn, in interactive sessions only (not `-p` or SDK), and reads `.env` in the working directory to learn which values are secret.
 - The box is a pane opened with `$.ui.open` and an `Input`. The element has no password mode, so the mod masks it itself: the field draws `•` repeated, and `onInput` works out what was typed, pasted or deleted and keeps the real value in a module variable. A hook may only run for 10 seconds of its own time, but time inside a mods API call doesn't count, so it waits for you in short `$.process.run(['sleep', '0.3'])` calls (on Windows, which has no `sleep`, a 300 ms `node -e` wait, or a `ping` of 1 second where node is not installed).
-- On Enter the mod writes `.env` with `$.fs` and hands the value to the vault, which answers with the placeholder. The vault maps each value to a random placeholder that stays stable within the session, and lives in memory only.
+- On Enter the mod writes `.env` (or the env file Claude names in `file`, such as `.env.local`) with `$.fs` and hands the value to the vault, which answers with the placeholder. The vault maps each value to a random placeholder that stays stable within the session, and lives in memory only.
 - The redaction is [transcript-redactor](../transcript-redactor), unchanged, in `hooks/redact.ts` and `hooks/detect.ts`. `register.jsx` calls its `register` and adds only what secret-box needs, so the two can't drift. Its hooks hide keys in your prompt, CLAUDE.md, tool results, `@` files, the engine's own attachments and subagent tasks, and put real values back into `Bash`, `Write` and `Edit`. A value restored into a command is hidden again if the command prints it.
 - Before a tool reads a `.env` file, a `tool.call` hook reads it too and gives every value whose name says secret (`KEY`, `TOKEN`, `SECRET`, `PASSWORD` and the like) to the vault. So even a weak value the detector would miss, like a word password, comes back as a placeholder.
 - A `tool.call` hook on `Bash` refuses `git add` of a `.env` file and runs `git diff --cached --name-only` before any `git commit`. A `prompt.mention` hook refuses `@.env`, which would attach the raw file.
@@ -107,7 +107,7 @@ claude plugin test .
 node --experimental-strip-types tests/detect.test.mts
 ```
 
-`tests/secret-box.test.ts` covers the guard, `.env` values and the round trip from placeholder to value. `tests/detect.test.mts` is transcript-redactor's detector test: 176 values that must be hidden and 117 that must be kept.
+`tests/secret-box.test.ts` covers the guard, `.env` values and the round trip from placeholder to value. `tests/request-secret.test.ts` covers the box: saving to `.env` or `.env.local`, refusing a path, a trailing dot or a git-tracked file in `file`, and letting go of a request that failed, timed out or was overtaken. `tests/detect.test.mts` is transcript-redactor's detector test: 176 values that must be hidden and 117 that must be kept.
 
 Tested with Claude Code 2.1.296.
 
