@@ -233,6 +233,8 @@ async function continueBranch($, node) {
 
 // Open the side pane. Unasked, Claude Code only places it on a wide terminal.
 async function openPane($, asked) {
+  // A -p run with DECISION_TREE_WAIT still builds the tree, but has no pane to open
+  if (headless) return
   // focus takes only true, so leave it out for an unasked open
   const pane = { id: PANE, title: 'Decision tree' }
   // Asked from /explain: take the keys, Escape closes it, and ask for room above the prompt

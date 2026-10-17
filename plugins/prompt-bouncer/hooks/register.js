@@ -74,7 +74,7 @@ export function register(on, options) {
     const arg = e.args.trim()
     if (arg === 'quick' || arg === 'project' || arg === 'off') {
       modeOverride = arg
-      $.ui.status(arg + ' mode')
+      if (!headless) $.ui.status(arg + ' mode')
     }
     const docs = await loadDocs($, options)
     return { text: 'mode ' + (await currentMode($, options)) + ', ' + bounces + ' bounced this session. Project docs: ' + (docs.files.join(', ') || 'none found') + ' (' + docs.text.length + ' chars)' }

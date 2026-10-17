@@ -19,6 +19,7 @@ let working = false // a turn is running
 let handedOff = false // handoff done since the user last sent something
 let context = null // { tokens, window, percent } from $.session.usage()
 let transcript = null // path to this session's .jsonl
+let headless = false // -p / SDK session: no band, so skip the transcript reads too
 
 // Read a number of minutes from an env var, or keep the default
 function minutes(value, fallback) {
@@ -188,7 +189,8 @@ export function register(on, options) {
   on('session.start', async ($, e, next) => {
     // Headless (-p, SDK): no band, and the timer would submit handoff turns
     // or compact with nobody at the prompt. Do nothing.
-    if (e.isInteractive === false) return next(e)
+    headless = e.isInteractive === false
+    if (headless) return next(e)
     await loadConfig($, options)
     context = (await $.session.usage()).context
     await $.command.register({ name: 'cache-clock', description: 'Print the cache countdown and context use' })
@@ -201,7 +203,7 @@ export function register(on, options) {
   on('classic.SessionStart', async ($, e, next) => {
     transcript = e.transcript_path ?? transcript
     if (e.seconds_since_last_response != null) mainAt = (await $.clock.now()) - e.seconds_since_last_response * 1000
-    await readTtl($)
+    if (!headless) await readTtl($)
     return next(e)
   }).catch(($, e, next) => (next.called ? undefined : next(e))) // never block the session on our error
 
@@ -231,7 +233,7 @@ export function register(on, options) {
   // After each turn, check which TTL the API actually used
   on('classic.Stop', async ($, e, next) => {
     transcript = e.transcript_path ?? transcript
-    await readTtl($)
+    if (!headless) await readTtl($)
     return next(e)
   }).catch(($, e, next) => (next.called ? undefined : next(e)))
 

@@ -207,9 +207,10 @@ async function write($: EngineInterface) {
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
+    // Headless hosts have no pane to draw, so no pane and no /memory-fork. The write pipeline still runs on turn.complete.
+    if (e.isInteractive === false) return next(e)
     await $.command.register({ name: 'memory-fork', description: 'Show what the memory fork changed' })
-    // Headless hosts have no pane to draw. The write pipeline still runs on turn.complete.
-    if (e.isInteractive !== false) void $.ui.open({ id: PANE, title: 'Memory' })
+    void $.ui.open({ id: PANE, title: 'Memory' })
 
     return next(e)
   })
